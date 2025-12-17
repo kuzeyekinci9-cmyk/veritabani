@@ -216,7 +216,7 @@ BEGIN
     ORDER BY COUNT(l.loan_id) DESC;
 END;
 $$ LANGUAGE plpgsql;
-
+-- AGGRAGATE İÇİN REVİEW PUANI İÇİN ORTALAMADA 
 -- ============================================================================
 -- 6. TRIGGERLAR (OTOMASYON KURALLARI)
 -- ============================================================================
