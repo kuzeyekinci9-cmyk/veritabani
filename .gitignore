@@ -1,0 +1,27 @@
+# --- OS Junk Files (Mac & Windows) ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Editor/IDE Settings ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Security (NEVER upload these) ---
+.env
+config.js
+secrets.json
+*.pem
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+__pycache__/
+*.py[cod]
+venv/
+env/
+.pytest_cache/
