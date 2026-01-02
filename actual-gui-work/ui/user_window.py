@@ -1,7 +1,9 @@
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget, 
                              QTableWidget, QTableWidgetItem, QLabel, QHeaderView, 
-                             QPushButton, QDialog, QFormLayout, QComboBox, QLineEdit, QMessageBox)
-from PyQt5.QtCore import Qt
+                             QPushButton, QDialog, QFormLayout, QComboBox, 
+                             QLineEdit, QMessageBox, QDateEdit, QHBoxLayout, 
+                             QTextEdit, QSpinBox) 
+from PyQt5.QtCore import Qt,QDate 
 
 class UserWindow(QMainWindow):
     def __init__ (self, db_manager):
@@ -118,6 +120,20 @@ class UserWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             self.refresh_my_tools_table()
 
+def setup_market_tab(self):
+        layout = QVBoxLayout()
+
+        filter_layout = QVBoxLayout() 
+        
+        # 1. Satır: Arama Kutusu
+        row1 = QWidget()
+        row1_layout = QFormLayout()
+        self.txt_search = QLineEdit()
+        self.txt_search.setPlaceholderText("Ne arıyorsunuz? (Örn: Matkap)")
+        self.txt_search.returnPressed.connect(self.perform_search)
+        row1_layout.addRow("Arama:", self.txt_search)
+        row1.setLayout(row1_layout)
+        filter_layout.addWidget(row1)
 
 class AddToolDialog(QDialog): # window for adding tools
     def __init__(self, db_manager, parent=None):

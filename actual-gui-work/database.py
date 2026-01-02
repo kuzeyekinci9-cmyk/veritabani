@@ -5,107 +5,186 @@ class DatabaseManager:
         self.conn = None
         self.cursor = None
         self.current_user_id = None
-        self.current_role = None # 'admin' or 'user'
+        self.current_role = None 
 
     def connect(self):
-        #connect to the PostgreSQL database
         try:
             self.conn = psycopg2.connect(
                 host="localhost",
                 database="toolshare_db",
                 user="postgres",
-                password="0000" # Update this with your actual password
+                password="0000"  # sifreni buraya yaz
             )
             self.cursor = self.conn.cursor()
-            print("Database connection established.")
+            print("Veritabanı bağlantısı başarılı.")
             return True
         except Exception as e:
-            print(f"Error connecting to database: {e}")
+            print(f"Veritabanı bağlantı hatası: {e}")
             return False
         
     def disconnect(self):
-        # disconnect from the PostgreSQL database
         if self.conn:
+            self.cursor.close()
             self.conn.close()
-            print("Database connection closed.")
+            print("Veritabanı bağlantısı kesildi.")
 
+    # --- GIRIS ISLEMLERI ---
+    
     def check_login(self, username, password):
-        # check user credentials for login
-        
-        sql = "SELECT user_id, role, full_name FROM Users WHERE username=%s AND password=%s"
-
         try:
-            self.cursor.execute(sql, (username, password))
-            result = self.cursor.fetchone() #bring back one record
+            # 1. username -> id cevrimi
+            self.cursor.callproc('sp_get_id_by_username', [username])
+            user_id = self.cursor.fetchone()[0]
 
+            if not user_id:
+                return False
+
+            # 2. sp_login cagrisi
+            self.cursor.callproc('sp_login', [user_id, password, 'user'])
+            result = self.cursor.fetchone()
+            
             if result:
-                # found a matching user
                 self.current_user_id = result[0]
                 self.current_role = result[1]
-                print(f"Entry approved: {result[2]} logged in as {self.current_role}.")
-                return True 
-            else:
-                print("Entry denied: Invalid username or password.")
-                return False   
-        except Exception as e:
-            print(f"Error during login check: {e}")
+                print(f"Giriş: {result[2]} ({self.current_role})")
+                return True
             return False
-    
+
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Login Hatası: {e}")
+            return False
+
+    # --- ALET YONETIMI (CRUD) ---
+
     def get_user_tools(self, user_id):
+        # kullanicinin aletlerini listele
         try:
-            self.cursor.callproc('sp_get_my_tools', [user_id])
-
-            return self.cursor.fetchall() # dönen tabloyu al
-        
-        except Exception as e:
+            self.cursor.callproc('sp_get_user_tools', [user_id])
+            return self.cursor.fetchall()
+        except Exception:
             self.conn.rollback()
-            print(f"Error fetching user tools: {e}")
             return []
     
-    def get_all_categories(self): #get all cats while adding tools.
-        sql = "SELECT category_id, category_name FROM Categories ORDER BY category_id"
-
+    def get_all_categories(self):
+        # combobox icin kategori listesi
         try:
-            self.cursor.execute(sql)
+            self.cursor.callproc('sp_get_categories', [])
             return self.cursor.fetchall()
-        except Exception as e:
-            print(f"Error fetching categories: {e}")
+        except Exception:
+            self.conn.rollback()
             return []
         
-    def add_new_tool(self, owner_id, category_id, name, description):
-        
+    def add_new_tool(self, category_id, name, description):
+        # yeni alet ekle
         try:
-            self.cursor.callproc('sp_add_tool', [owner_id, category_id, name, description])
+            self.cursor.callproc('sp_secure_add_tool', [self.current_user_id, self.current_user_id, category_id, name, description])
             self.conn.commit()
-            print("New tool added successfully.")
-            return True, 
+            return True, "Alet eklendi."
         except Exception as e:
             self.conn.rollback()
-            print(f"Error adding new tool: {e}")
-            return False
+            return False, str(e).split('\n')[0]
     
     def delete_tool(self, tool_id):
+        # alet sil
         try:
-            self.cursor.callproc('sp_delete_tool', [tool_id])
+            self.cursor.callproc('sp_secure_delete_tool', [tool_id, self.current_user_id])
             self.conn.commit()
-            print("Tool deleted successfully.")
-            return True, "Alet başarıyla silindi." 
-            
+            return True, "Alet silindi."
         except Exception as e:
             self.conn.rollback()
-            return False, str(e)
+            return False, str(e).split('\n')[0]
     
-    def update_tool(self, tool_id, new_desc, new_status):
+    def toggle_maintenance(self, tool_id):
+        # bakim modu ac/kapa
         try:
-            self.cursor.callproc('sp_update_tool_info', [tool_id, new_desc, new_status])
+            self.cursor.callproc('sp_toggle_maintenance', [tool_id, self.current_user_id])
+            msg = self.cursor.fetchone()[0]
             self.conn.commit()
-            print("Tool updated successfully.")
-            return True, "Alet başarıyla güncellendi."
+            return True, msg
         except Exception as e:
             self.conn.rollback()
-            return False, f"Güncelleme hatası: {e}"
+            return False, str(e).split('\n')[0]
 
+    def update_tool_description(self, tool_id, new_desc):
+        # sadece aciklama guncelle
+        try:
+            self.cursor.callproc('sp_update_tool_description', [tool_id, self.current_user_id, new_desc])
+            msg = self.cursor.fetchone()[0]
+            self.conn.commit()
+            return True, msg
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
 
+    # --- VITRIN VE ARAMA ---
+
+    def search_tools(self, keyword, sort_option=1):
+        # arama ve siralama
+        try:
+            term = keyword if keyword.strip() != "" else None
+            self.cursor.callproc('sp_search_and_sort_tools', [term, sort_option])
+            return self.cursor.fetchall()
+        except Exception:
+            self.conn.rollback()
+            return []
+
+    def get_tool_reviews(self, tool_id):
+        # alet yorumlarini getir
+        try:
+            self.cursor.callproc('sp_get_tool_reviews', [tool_id])
+            return self.cursor.fetchall()
+        except Exception:
+            self.conn.rollback()
+            return []
+
+    # --- KIRALAMA VE IADE ---
+
+    def rent_tool(self, tool_id, start_date, end_date):
+        # kiralama yap (triggerlar calisir)
+        try:
+            self.cursor.callproc('sp_rent_tool', [self.current_user_id, tool_id, start_date, end_date])
+            msg = self.cursor.fetchone()[0]
+            self.conn.commit()
+            
+            if "HATA" in msg: return False, msg
+            return True, msg
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
+
+    def get_my_rentals(self):
+        # kiraladiklarim
+        try:
+            self.cursor.callproc('sp_get_my_rentals', [self.current_user_id])
+            return self.cursor.fetchall()
+        except Exception:
+            self.conn.rollback()
+            return []
+
+    def return_tool(self, loan_id):
+        # iade et
+        try:
+            self.cursor.callproc('sp_return_tool', [self.current_user_id, loan_id])
+            msg = self.cursor.fetchone()[0]
+            self.conn.commit()
+            
+            if "HATA" in msg: return False, msg
+            return True, msg
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
+
+    def add_review(self, loan_id, user_rating, tool_rating, comment):
+        # puan ver
+        try:
+            self.cursor.callproc('sp_add_review', [loan_id, 'Renter', user_rating, tool_rating, comment])
+            msg = self.cursor.fetchone()[0]
+            self.conn.commit()
+            return True, msg
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
 
 
 
