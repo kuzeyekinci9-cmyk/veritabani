@@ -6,6 +6,7 @@ class DatabaseManager:
         self.cursor = None
         self.current_user_id = None
         self.current_role = None 
+        self.current_user_name = ""
 
     def connect(self):
         try:
@@ -46,7 +47,7 @@ class DatabaseManager:
             if result:
                 self.current_user_id = result[0]
                 self.current_role = result[1]
-                print(f"Giriş: {result[2]} ({self.current_role})")
+                self.current_user_name = result[2]
                 return True
             return False
 
@@ -54,6 +55,14 @@ class DatabaseManager:
             self.conn.rollback()
             print(f"Login Hatası: {e}")
             return False
+        
+    def get_my_score(self):
+        try:
+            sql = "SELECT security_score FROM User WHERE user_id =%s"
+            self.cursor.execute(sql, (self.current_user_id,))  
+            return self.cursor.fetchone()[0]
+        except Exception:
+            return 0.0          
 
     # --- ALET YONETIMI (CRUD) ---
 
