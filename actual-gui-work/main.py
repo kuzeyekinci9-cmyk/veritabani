@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 from database import DatabaseManager
 from ui.login_window import LoginWindow
 from ui.user_window import UserWindow
+from ui.admin_window import AdminWindow
+
 
 class MainApp:
     def __init__(self):
@@ -30,7 +32,8 @@ class MainApp:
             self.main_window = UserWindow(self.db)
             self.main_window.show()
         elif role == 'admin':
-            QMessageBox.information(None, "Bilgi", "Admin paneli hazır değil.")
+            self.main_window = AdminWindow(self.db)
+            self.main_window.show()
         else:
             QMessageBox.warning(None, "Hata", "Bilinmeyen kullanıcı rolü.")
 

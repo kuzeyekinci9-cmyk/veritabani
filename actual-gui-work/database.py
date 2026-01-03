@@ -35,27 +35,41 @@ class DatabaseManager:
         try:
             # 1. username -> id cevrimi
             self.cursor.callproc('sp_get_id_by_username', [username])
-            user_id = self.cursor.fetchone()[0]
+            res = self.cursor.fetchone()
 
-            if not user_id:
+            if not res or res[0] is None:
                 return False
+            
+            user_id = res[0]
 
-            # 2. sp_login cagrisi
-            self.cursor.callproc('sp_login', [user_id, password, 'user'])
-            result = self.cursor.fetchone()
+            try:
+                self.cursor.callproc('sp_login',[user_id,password,'user'])
+                result = self.cursor.fetchone()
+            except psycopg2.DatabaseError as e:
+                #erişim reddedildi hatası verirse admin olabilir. rollback yapıp deneyelim.
+                self.conn.rollback()
+                error_msg = str(e)
+
+                if "ERİŞİM REDDEDİLDİ" in error_msg or "admin" in error_msg:
+                    self.cursor.callproc('sp_login',[user_id,password,'admin'])
+                    result = self.cursor.fetchone()
+
+                else:
+                    print(f"Login Hatası: {error_msg}")
+                    return False
             
             if result:
                 self.current_user_id = result[0]
                 self.current_role = result[1]
                 self.current_user_name = result[2]
                 return True
+            
             return False
-
         except Exception as e:
             self.conn.rollback()
-            print(f"Login Hatası: {e}")
+            print(f"Genel Login Hatası: {e}")
             return False
-        
+         
     def get_my_score(self):
         try:
             sql = "SELECT security_score FROM Users WHERE user_id =%s"
@@ -214,7 +228,85 @@ class DatabaseManager:
         except Exception as e:
             self.conn.rollback()
             return False, str(e).split('\n')[0]
+        
+#======================================= Admin Fonksiyonları
 
+    def get_all_users(self):
+        # tum kullanicilari listele
+        try:
+            self.cursor.callproc('sp_get_all_users', [])
+            return self.cursor.fetchall()
+        except Exception:
+            self.conn.rollback()
+            return []
+    
+    def add_user(self,username,password,full_name,role):
+        # yeni kullanici ekle
+        try:
+            self.cursor.callproc('sp_add_user',[self.current_user_id,username,password,full_name,role])
+            self.conn.commit()
+            return True, "Kullanıcı eklendi."
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
+    
+    def make_admin(self,target_user_id):
+        #birisini admin yap
+        try:
+            self.cursor.callproc('sp_grant_admin_role',[self.current_user_id, target_user_id])
+            self.conn.commit()
+            return True, "Kullanıcı admin yetkisi verildi."
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
+        
+    def revoke_admin(self,target_user_id):
+        #admin yetkisini al
+        try:
+            self.cursor.callproc('sp_revoke_admin_role',[self.current_user_id, target_user_id])
+            self.conn.commit()
+            return True, "Kullanıcının admin yetkisi alındı."
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
+    
+    def get_monthly_activity(self,month,year):
+        #aylık rapor
+        try:
+            #calproc kullanıldığında dönen değerler fetchone/fetchall ile alınır
+            self.cursor.callproc('monthly_sharing_activity',[self.current_user_id,month,year])
+            #fonksiyondan dönen tek değer döndüğü için fetchone kullanıldı,bir tuple döner.
+            return self.cursor.fetchone()[0]
+        except Exception as e:
+            print(e)
+            return 0
+        
+    def get_top_sharers(self,min_shares):
+        #en cok alet paylaşanlar
+        try:
+            self.cursor.callproc('get_top_sharers',[self.current_user_id,min_shares])
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(e)
+            return []
+    def get_all_tools_global(self):
+        # Admin: Tum aletleri (status farketmeksizin) getir
+        try:
+            self.cursor.callproc('sp_get_all_tools_global', [])
+            return self.cursor.fetchall()
+        except Exception:
+            self.conn.rollback()
+            return []
+
+    def get_all_loans_global(self):
+        # Admin: Tum kiralama islemlerini getir
+        try:
+            self.cursor.callproc('sp_get_all_loans_global', [])
+            return self.cursor.fetchall()
+        except Exception:
+            self.conn.rollback()
+            return []
+        
 
 
 

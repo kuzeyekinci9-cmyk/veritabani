@@ -385,6 +385,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+--[21] TÜM KULLANICILARI LİSTELE
+CREATE OR REPLACE FUNCTION sp_get_all_users()
+RETURNS TABLE(user_id INTEGER, username VARCHAR, full_name VARCHAR, role VARCHAR, security_score DECIMAL) AS $$
+BEGIN
+    RETURN QUERY SELECT u.user_id, u.username, u.full_name, u.role, u.security_score FROM Users u ORDER BY u.user_id ASC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- [22] GLOBAL ALET LİSTESİ (ADMIN İÇİN)
+-- Tüm aletleri durum fark etmeksizin (Kirada, Bakımda, Müsait) getirir.
+CREATE OR REPLACE FUNCTION sp_get_all_tools_global()
+RETURNS TABLE(tool_id INTEGER, tool_name VARCHAR, category_name VARCHAR, owner_name VARCHAR, status VARCHAR, tool_score DECIMAL, owner_score DECIMAL, description TEXT) AS $$
+BEGIN
+    RETURN QUERY 
+    SELECT 
+        t.tool_id, t.tool_name, c.category_name, u.full_name AS owner_name, 
+        t.status, t.tool_score, u.security_score AS owner_score, t.description
+    FROM Tools t
+    JOIN Users u ON t.owner_id = u.user_id
+    JOIN Categories c ON t.category_id = c.category_id
+    ORDER BY t.tool_id ASC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- [23] GLOBAL KİRALAMA LİSTESİ (ADMIN İÇİN)
+-- Tüm kiralama işlemlerini (Aktif/Tamamlandı) getirir.
+CREATE OR REPLACE FUNCTION sp_get_all_loans_global()
+RETURNS TABLE(loan_id INTEGER, tool_name VARCHAR, renter_name VARCHAR, owner_name VARCHAR, start_d TIMESTAMP, end_d TIMESTAMP, stat VARCHAR) AS $$
+BEGIN
+    RETURN QUERY 
+    SELECT 
+        l.loan_id, t.tool_name, 
+        u_renter.full_name AS renter_name, 
+        u_owner.full_name AS owner_name, 
+        l.start_date, l.end_date, l.loan_status
+    FROM Loans l
+    JOIN Tools t ON l.tool_id = t.tool_id
+    JOIN Users u_renter ON l.renter_id = u_renter.user_id
+    JOIN Users u_owner ON t.owner_id = u_owner.user_id
+    ORDER BY l.start_date DESC;
+END;
+$$ LANGUAGE plpgsql;
 -- ============================================================================
 -- 6. TRIGGERLAR
 -- ============================================================================
