@@ -58,7 +58,7 @@ class DatabaseManager:
         
     def get_my_score(self):
         try:
-            sql = "SELECT security_score FROM User WHERE user_id =%s"
+            sql = "SELECT security_score FROM Users WHERE user_id =%s"
             self.cursor.execute(sql, (self.current_user_id,))  
             return self.cursor.fetchone()[0]
         except Exception:

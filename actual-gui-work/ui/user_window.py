@@ -160,7 +160,7 @@ class UserWindow(QMainWindow):
         if row < 0: return
 
         tool_id = int(self.table_tools.item(row, 0).text())
-        success, message = self.db.toggle_tool_maintenance(tool_id)
+        success, message = self.db.toggle_maintenance(tool_id)
         if success:
             QMessageBox.information(self, "Bilgi", message)
             self.refresh_my_tools_table()
