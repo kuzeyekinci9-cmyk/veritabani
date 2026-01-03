@@ -2,8 +2,8 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QTableWidget, QTableWidgetItem, QLabel, QHeaderView, 
                              QPushButton, QDialog, QFormLayout, QComboBox, 
                              QLineEdit, QMessageBox, QDateEdit, QHBoxLayout, 
-                             QTextEdit, QSpinBox,QAbstractItemView) 
-from PyQt5.QtCore import Qt,QDate
+                             QTextEdit, QSpinBox,QAbstractItemView, QDateTimeEdit) 
+from PyQt5.QtCore import Qt,QDate, QDateTime
 
 
 class UserWindow(QMainWindow):
@@ -484,12 +484,12 @@ class RentToolDialog(QDialog): # window for renting tools
         layout = QVBoxLayout()
         form = QFormLayout()
         
-        self.date_start = QDateEdit()
-        self.date_start.setDate(QDate.currentDate())
+        self.date_start = QDateTimeEdit()
+        self.date_start.setDateTime(QDateTime.currentDateTime())
         self.date_start.setCalendarPopup(True)
-        
-        self.date_end = QDateEdit()
-        self.date_end.setDate(QDate.currentDate().addDays(1))
+
+        self.date_end = QDateTimeEdit()
+        self.date_end.setDateTime(QDateTime.currentDateTime().addDays(1))
         self.date_end.setCalendarPopup(True)
         
         form.addRow("Başlangıç:", self.date_start)
