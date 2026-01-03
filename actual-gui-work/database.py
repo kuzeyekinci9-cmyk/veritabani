@@ -195,7 +195,25 @@ class DatabaseManager:
             self.conn.rollback()
             return False, str(e).split('\n')[0]
 
-
+    def get_loans_of_my_tools(self):
+        # benim aletlerimin kiralamalari
+        try:
+            self.cursor.callproc('sp_get_loans_of_my_tools', [self.current_user_id])
+            return self.cursor.fetchall()
+        except Exception:
+            self.conn.rollback()
+            return []
+    
+    def add_owner_review(self, loan_id, rating, comment):
+        # owner puan ver
+        try:
+            self.cursor.callproc('sp_add_review', [loan_id, 'Owner', rating, None, comment])
+            msg = self.cursor.fetchone()[0]
+            self.conn.commit()
+            return True, msg
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).split('\n')[0]
 
 
 
