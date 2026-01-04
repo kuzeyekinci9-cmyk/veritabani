@@ -2,8 +2,9 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTabWidget, QTableWidget, QTableWidgetItem, 
                              QPushButton, QLabel, QHeaderView, QMenu, 
                              QMessageBox, QDialog, QFormLayout, QLineEdit, 
-                             QComboBox, QSpinBox, QGroupBox)
+                             QComboBox, QSpinBox, QGroupBox,QAbstractItemView)
 from PyQt5.QtCore import Qt
+from .user_window import ToolReviewDialog
 
 class AdminWindow(QMainWindow):
     def __init__(self, db_manager):
@@ -213,22 +214,27 @@ class AdminWindow(QMainWindow):
         self.table_all_tools.setHorizontalHeaderLabels(["ID", "Alet Adı", "Kategori", "Sahibi", "Durum", "Alet P.", "Sahip P.", "Açıklama"])
         self.table_all_tools.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.table_all_tools.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_all_tools.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        h_layout_tools = QHBoxLayout()
         
         btn_refresh_tools = QPushButton("Aletleri Yenile")
         btn_refresh_tools.clicked.connect(self.refresh_all_tools_table)
+
+        btn_read_reviews = QPushButton("Yorumları Oku")
+        btn_read_reviews.clicked.connect(self.admin_read_reviews)
         
         # Admin icin alet silme butonu
         btn_delete_tool = QPushButton("Seçili Aleti Zorla Sil (Admin Yetkisiyle)")
         btn_delete_tool.setStyleSheet("background-color: #ffcccc;")
         btn_delete_tool.clicked.connect(self.admin_delete_tool)
+
+        h_layout_tools.addWidget(btn_refresh_tools)
+        h_layout_tools.addWidget(btn_read_reviews)
+        h_layout_tools.addWidget(btn_delete_tool)
         
         box1.addWidget(self.table_all_tools)
-        
-        h_layout_tools = QHBoxLayout()
-        h_layout_tools.addWidget(btn_refresh_tools)
-        h_layout_tools.addWidget(btn_delete_tool)
         box1.addLayout(h_layout_tools)
-        
         grp_tools.setLayout(box1)
         layout.addWidget(grp_tools)
 
@@ -241,12 +247,22 @@ class AdminWindow(QMainWindow):
         self.table_all_loans.setHorizontalHeaderLabels(["Loan ID", "Alet Adı", "Kiracı", "Sahibi", "Başlangıç", "Bitiş", "Durum"])
         self.table_all_loans.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.table_all_loans.setSelectionBehavior(QTableWidget.SelectRows)
-        
+        self.table_all_loans.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+        h_layout_loans = QHBoxLayout()
+
         btn_refresh_loans = QPushButton("Kiralamaları Yenile")
         btn_refresh_loans.clicked.connect(self.refresh_all_loans_table)
+
+        btn_force_return = QPushButton("Kiralamayı Zorla Bitir (Force Return)")
+        btn_force_return.setStyleSheet("color: red; font-weight: bold;")
+        btn_force_return.clicked.connect(self.admin_force_return)
+
+        h_layout_loans.addWidget(btn_refresh_loans)
+        h_layout_loans.addWidget(btn_force_return)
         
         box2.addWidget(self.table_all_loans)
-        box2.addWidget(btn_refresh_loans)
+        box2.addLayout(h_layout_loans)
         grp_loans.setLayout(box2)
         layout.addWidget(grp_loans)
 
@@ -294,6 +310,45 @@ class AdminWindow(QMainWindow):
             else:
                 QMessageBox.critical(self, "Hata", msg)
    
+    def admin_read_reviews(self):
+        row = self.table_all_tools.currentRow()
+        if row < 0:
+            QMessageBox.warning(self,"Uyarı","Yorumlarını okumak için bir alet seç")
+            return
+        
+        tool_id = int(self.table_all_tools.item(row,0).text())
+        tool_name = self.table_all_tools.item(row,1).text()
+
+        dialog = ToolReviewDialog(self.db,tool_id,tool_name,self)
+        dialog.exec_()
+
+    def admin_force_return(self):
+        row = self.table_all_loans.currentRow()
+        if row < 0:
+            QMessageBox.warning(self,"Uyarı","Sonlandırılacak işlemi seçin")
+            return
+        
+        status = self.table_all_loans.item(row,6).text() #bittiyse islem yapma
+        if status == 'Tamamlandı':
+            QMessageBox.information(self,"Bilgi","Bu işlem zaten tamamlanmış")
+            return
+        
+        loan_id = int(self.table_all_loans.item(row,0).text())
+
+        reply = QMessageBox.question(self,"Admin Yetkisi","Bu kiralamayı ZORLA sonlandırmak istiyor musunuz?\n Alet 'Müsait' durumuna geçecek", QMessageBox.Yes | QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            #sp return tool'u admin id si ile çağır.
+            success,msg = self.db.return_tool(loan_id)
+            
+            if success :
+                QMessageBox.information(self,"Başarılı","Kiralama sonlandırıldı.\n" + msg)
+                self.refresh_all_loans_table()
+                self.refresh_all_tools_table() #alet durumu da değişti
+
+            else:
+                QMessageBox.critical(self,"Hata",msg)
+
 
 #dialogs
 class AddUserDialog(QDialog):
