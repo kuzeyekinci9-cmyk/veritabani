@@ -1,6 +1,5 @@
 -- ============================================================================
--- PROJE ADI: TOOLSHARE (ADMIN-SECURE & IMECE EDITION - ULTIMATE v7.1)
--- NOT: UI Entegrasyonu için Helper Fonksiyonlar Eklendi.
+-- PROJE ADI: TOOLSHARE 
 -- ============================================================================
 
 DROP SCHEMA public CASCADE;
@@ -95,7 +94,7 @@ JOIN Users u ON t.owner_id = u.user_id
 JOIN Categories c ON t.category_id = c.category_id
 WHERE t.status = 'Müsait';
 
--- View 2: Cömertler (Sadece Verenler)
+-- View 2: Sadece Verenler
 CREATE OR REPLACE VIEW v_givers_not_takers AS
 SELECT user_id, username, full_name 
 FROM Users 
@@ -410,7 +409,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- [23] GLOBAL KİRALAMA LİSTESİ (ADMIN İÇİN)
--- Tüm kiralama işlemlerini (Aktif/Tamamlandı) getirir.
+-- Tüm kiralama işlemlerini getirir.
 CREATE OR REPLACE FUNCTION sp_get_all_loans_global()
 RETURNS TABLE(loan_id INTEGER, tool_name VARCHAR, renter_name VARCHAR, owner_name VARCHAR, start_d TIMESTAMP, end_d TIMESTAMP, stat VARCHAR) AS $$
 BEGIN
@@ -549,13 +548,12 @@ INSERT INTO Tools (owner_id, category_id, tool_name, description, status) VALUES
 (14, 5, 'Araç Arıza Tespit Cihazı', 'OBD2 uyumlu', 'Müsait'),
 -- Hazal (15)
 (15, 8, 'Silikon Tabancası', 'Sıcak silikon, çubukları hariç', 'Müsait'),
--- Ekstra Aletler (Zengin görünsün diye)
+-- Ekstra Aletler
 (2, 4, 'Basınçlı Yıkama Makinesi', 'Karcher K3 model', 'Müsait'),
 (4, 3, 'Kamp Sandalyesi (2 Adet)', 'Katlanabilir', 'Müsait'),
 (10, 1, 'Avuç Taşlama', 'Spiral taşlama makinesi', 'Müsait');
 
 -- D. LOANS (KİRALAMALAR) - 15 Kayıt
--- DİKKAT: Burada owner_id != renter_id kuralına göre ve geçmiş tarihlerle eşleştirdim.
 
 INSERT INTO Loans (tool_id, renter_id, start_date, end_date, loan_status) VALUES
 -- 1. Ali'nin Matkabını -> Mehmet kiraladı
@@ -590,7 +588,7 @@ INSERT INTO Loans (tool_id, renter_id, start_date, end_date, loan_status) VALUES
 (18, 6, '2025-12-25 10:00:00', '2025-12-26 10:00:00', 'Tamamlandı');
 
 -- E. REVIEWS (YORUMLAR) - 15 Adet
--- Yukarıdaki kiralamalara (Tamamlandı olanlara) gerçekçi yorumlar.
+-- Yukarıdaki kiralamalara yorumlar.
 
 INSERT INTO Reviews (loan_id, reviewer_type, user_rating, tool_rating, comment) VALUES
 -- 1. Matkap Yorumu (Mehmet -> Ali)
@@ -623,7 +621,7 @@ INSERT INTO Reviews (loan_id, reviewer_type, user_rating, tool_rating, comment) 
 -- 14. Sandalye (Elif -> Mehmet)
 (14, 'Renter', 5, 5, 'Çok rahattı, kampın tadını çıkardık.');
 
--- 6. SON ADIM: ID SENKRONİZASYONU
+-- 6. ID SENKRONİZASYONU
 SELECT setval('seq_users_id', (SELECT MAX(user_id) FROM Users));
 SELECT setval('seq_category_id', (SELECT MAX(category_id) FROM Categories));
 SELECT setval('seq_tool_id', (SELECT MAX(tool_id) FROM Tools));
